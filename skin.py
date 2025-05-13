@@ -1,46 +1,34 @@
 import streamlit as st
 from PIL import Image
-import numpy as np
 from ultralytics import YOLO
 
-# Load the YOLOv8 model (best_skin.pt)
-try:
-    model = YOLO('best_skin.pt')  # replace with your model path if different
-except ImportError as e:
-    st.error(
-        "Failed to import YOLO. Make sure `ultralytics` and `opencv-python-headless` are installed."
-    )
-    st.stop()
+# Load the YOLOv8 classification model (best.pt)
+model = YOLO('best.pt') 
 
 # App title
-st.title("YOLOv8 Model Demo")
+st.title("Skin Cancer Classification Demo")
 
 # File uploader allows only image types
-uploaded_file = st.file_uploader(
-    "Upload an image", type=['jpg', 'jpeg', 'png']
-)
+uploaded_file = st.file_uploader("Upload an image", type=['jpg', 'jpeg', 'png'])
 
 if uploaded_file:
     # Open the image with PIL
-    image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption='Uploaded Image', use_container_width=True)
-    st.write("Running inference...")
+    image = Image.open(uploaded_file)
+    st.image(image, caption='Uploaded Image', use_column_width=True)
+    st.write("Classifying...")
 
-    # Perform inference
-    results = model.predict(source=np.array(image))
+    # Perform classification prediction (ensure task='classify')
+    results = model.predict(source=image, task='classify')  # classification task
     result = results[0]
 
-    # If classification probabilities are returned, show top-1 class
+    # Check that probabilities are available
     if result.probs is not None:
+        # The Probs object provides top1 and top1conf directly
         top_idx = result.probs.top1
         class_name = result.names[top_idx]
         confidence = result.probs.top1conf
-        st.success(f"**Classification:** {class_name} ({confidence * 100:.2f}%)")
-    # Otherwise, treat as detection: draw boxes
-    elif hasattr(result, 'boxes') and result.boxes:
-        annotated = result.plot()
-        st.image(annotated, caption='Detections', use_container_width=True)
+
+        # Display the prediction
+        st.write(f"*Prediction:* {class_name} ({confidence * 100:.2f}%)")
     else:
-        st.error(
-            "No valid output returned. Please ensure your `best_skin.pt` is a valid YOLOv8 classification or detection model."
-        )
+        st.error("No classification probabilities returned. Please ensure you're using a classification model and the correct task.")
